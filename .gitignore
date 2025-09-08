@@ -1,0 +1,4 @@
+/target
+.env
+resources/email-bodies
+/notes
