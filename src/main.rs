@@ -50,6 +50,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             let send_result = send_email(&mailer, politician_data);
 
+            // TODO: implement handling for:
+            // 5.4.5 Daily user sending limit exceeded. For more information on Gmail5.4.5 sending limits go to5.4.5  https://support.google.com/a/answer/166852 ffacd0b85a97d-3e7521c99b9sm2149053f8f.15 - gsmtp
+            // use two different accounts for sending emails. Google allows 500 emails per day per account. For now it's needed to run the application two times with two different accounts.
             match send_result {
                 Ok(true) => email_counter += 1,
                 Ok(false) => already_helping_counter += 1,
