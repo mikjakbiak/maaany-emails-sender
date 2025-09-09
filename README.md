@@ -1,6 +1,6 @@
-# many-emails-sender
+# maaany-emails-sender
 
-Send a lot of emails to politicians
+Send a lot of emails to Polish politicians to help Global Sumud Flotilla
 
 ## Prerequisites
 
