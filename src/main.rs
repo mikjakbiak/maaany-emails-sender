@@ -19,6 +19,21 @@ struct PoliticianData {
 fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
 
+    let sender_address = env::var("SENDER_ADDRESS").unwrap();
+    let smtp_host = env::var("SMTP_HOST").unwrap();
+    let smtp_password = env::var("SMTP_PASSWORD").unwrap();
+
+    //? Open a secure connection to the SMTP server using STARTTLS
+    let credentials = Credentials::new(sender_address.to_string(), smtp_password.to_string());
+    let mailer = SmtpTransport::starttls_relay(&smtp_host)
+        .unwrap()
+        .credentials(credentials)
+        .build();
+
+    let mut email_counter = 0;
+    let mut error_counter = 0;
+    let mut already_helping_counter = 0;
+
     let csv_files_dir = "resources/politicians";
 
     //? Iterate over the csv files in the directory
@@ -33,24 +48,41 @@ fn main() -> Result<(), Box<dyn Error>> {
         for result in rdr.deserialize() {
             let politician_data: PoliticianData = result?;
 
-            send_email(politician_data)?;
+            let send_result = send_email(&mailer, politician_data);
+
+            match send_result {
+                Ok(true) => email_counter += 1,
+                Ok(false) => already_helping_counter += 1,
+                Err(e) => {
+                    error_counter += 1;
+                    eprintln!("❌ Error sending email: {e}");
+                }
+            }
         }
     }
+
+    println!();
+    println!("✉️ {email_counter} emails sent");
+    println!("🥳 {already_helping_counter} politicians already help");
+    println!("❌ {error_counter} errors occurred");
+    println!();
+
     Ok(())
 }
 
-fn send_email(politician_data: PoliticianData) -> Result<(), Box<dyn Error>> {
+fn send_email(
+    mailer: &SmtpTransport,
+    politician_data: PoliticianData,
+) -> Result<bool, Box<dyn Error>> {
     let subject = env::var("EMAIL_SUBJECT").unwrap();
     let sender_name = env::var("SENDER_NAME").unwrap();
     let sender_address = env::var("SENDER_ADDRESS").unwrap();
-    let smtp_host = env::var("SMTP_HOST").unwrap();
-    let smtp_password = env::var("SMTP_PASSWORD").unwrap();
 
     //? Check if the politician already helps
     let is_already_helping = politician_data.notes.contains("wspiera");
     if is_already_helping {
         println!("🥳 {} already helps", politician_data.name);
-        return Ok(());
+        return Ok(false);
     }
 
     println!(
@@ -83,21 +115,14 @@ fn send_email(politician_data: PoliticianData) -> Result<(), Box<dyn Error>> {
         .header(content_type)
         .body(body)?;
 
-    //? Open a secure connection to the SMTP server using STARTTLS
-    let credentials = Credentials::new(sender_address.to_string(), smtp_password.to_string());
-    let mailer = SmtpTransport::starttls_relay(&smtp_host)
-        .unwrap()
-        .credentials(credentials)
-        .build();
-
     //? Send the email via the SMTP transport
     match mailer.send(&email) {
         Ok(_) => println!("✅ Email sent successfully!"),
-        Err(e) => eprintln!(
+        Err(e) => Err(format!(
             "❌ Could not send email to {}: {:?}",
             politician_data.name, e
-        ),
+        ))?,
     }
 
-    Ok(())
+    Ok(true)
 }
