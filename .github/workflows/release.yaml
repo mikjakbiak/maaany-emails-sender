@@ -55,3 +55,38 @@ jobs:
           target: ${{ matrix.platform.target }}
           action-gh-release-parameters: '{ "make_latest": false }'
         if: matrix.toolchain == 'stable'
+      # Package the binary together with resources/
+      - name: Package with resources (Unix)
+        id: pkg_unix
+        if: runner.os != 'Windows'
+        run: |
+          set -eux
+          BIN="target/${{ matrix.platform.target }}/release/maaany-emails-sender"
+          OUT="maaany-emails-sender-${{ matrix.platform.target }}.tar.gz"
+          mkdir -p dist
+          cp "$BIN" dist/
+          cp -R resources dist/resources
+          tar -C dist -czf "$OUT" "maaany-emails-sender" "resources"
+          echo "asset=$OUT" >> "$GITHUB_OUTPUT"
+      - name: Package with resources (Windows)
+        id: pkg_win
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $bin = "target/${{ matrix.platform.target }}/release/maaany-emails-sender.exe"
+          $out = "maaany-emails-sender-${{ matrix.platform.target }}.zip"
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          Copy-Item $bin -Destination dist/
+          Copy-Item -Recurse resources dist/resources
+          Compress-Archive -Path dist\maaany-emails-sender.exe, dist\resources -DestinationPath $out -Force
+          echo "asset=$out" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+      - name: Upload archive (Unix)
+        if: runner.os != 'Windows'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pkg_unix.outputs.asset }}
+      - name: Upload archive (Windows)
+        if: runner.os == 'Windows'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pkg_win.outputs.asset }}
