@@ -1,6 +1,6 @@
-# politician-abuser
+# many-emails-sender
 
-Abuse a lot of politicians with emails
+Send a lot of emails to politicians
 
 ## Prerequisites
 
