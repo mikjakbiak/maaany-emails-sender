@@ -44,11 +44,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Processing file: {}", filename);
 
         //? Read the csv file and send an email to each politician
-        let mut rdr = csv::Reader::from_path(path)?;
+        let mut rdr = csv::Reader::from_path(path.clone())?;
         for result in rdr.deserialize() {
             let politician_data: PoliticianData = result?;
 
-            let send_result = send_email(&mailer, politician_data);
+            let send_result = send_email(&mailer, politician_data, filename);
 
             // TODO: implement handling for:
             // 5.4.5 Daily user sending limit exceeded. For more information on Gmail5.4.5 sending limits go to5.4.5  https://support.google.com/a/answer/166852 ffacd0b85a97d-3e7521c99b9sm2149053f8f.15 - gsmtp
@@ -76,6 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn send_email(
     mailer: &SmtpTransport,
     politician_data: PoliticianData,
+    filename: &str,
 ) -> Result<bool, Box<dyn Error>> {
     let subject = env::var("EMAIL_SUBJECT").unwrap();
     let sender_name = env::var("SENDER_NAME").unwrap();
@@ -94,11 +95,18 @@ fn send_email(
     );
 
     let is_female = politician_data.pronouns.contains("F");
+    let is_onz = filename.contains("ONZ");
 
-    //? Read the email body based on the politician's gender
+    //? Read the email body based on the institution and politician's gender
     let body = fs::read_to_string(format!(
         "resources/email-bodies/{}.html",
-        if is_female { "female" } else { "male" }
+        if is_onz {
+            "ONZ"
+        } else if is_female {
+            "female"
+        } else {
+            "male"
+        }
     ))?;
 
     //? Build the email
